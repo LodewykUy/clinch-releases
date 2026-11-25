@@ -17,6 +17,10 @@ jobs:
         with: { node-version: 22 }
       - run: npm version "${{ inputs.version }}" --no-git-tag-version --allow-same-version
       - run: npm install
+      - name: Create the release tag
+        run: gh release view "v${{ inputs.version }}" >/dev/null 2>&1 || gh release create "v${{ inputs.version }}" --title "Clinch ${{ inputs.version }}" --notes "Clinch for Windows ${{ inputs.version }}" --target main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and publish installer
         run: npx electron-builder --win --publish always
         env:
