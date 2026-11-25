@@ -50,6 +50,14 @@
         "repo": "clinch-releases",
         "releaseType": "release"
       }
+    ],
+    "protocols": [
+      {
+        "name": "Clinch sign-in",
+        "schemes": [
+          "clinch"
+        ]
+      }
     ]
   }
 }

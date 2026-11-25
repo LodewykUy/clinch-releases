@@ -76,11 +76,11 @@
     <p>Sign in or create your account. 7 days free, no card needed.</p>
     <div id="loginEmail">
       <input id="email" type="email" placeholder="you@email.com" autocomplete="email">
-      <div class="btns" style="justify-content:center"><button id="sendCode" class="primary">Email me a code</button></div>
+      <div class="btns" style="justify-content:center"><button id="sendCode" class="primary">Email me a sign-in link</button></div>
     </div>
     <div id="loginCode" hidden>
-      <p style="margin:0 0 10px">We sent a code to <b id="sentTo"></b></p>
-      <input id="code" inputmode="numeric" placeholder="Enter the code" autocomplete="one-time-code" style="text-align:center;font-size:20px;letter-spacing:.2em">
+      <p style="margin:0 0 10px">We emailed a sign-in link to <b id="sentTo"></b></p>
+      <input id="code" placeholder="Or paste the code / link here" autocomplete="one-time-code" style="text-align:center">
       <div class="btns" style="justify-content:center"><button id="verify" class="primary">Sign in</button><button id="back">Use another email</button></div>
     </div>
     <p id="loginMsg" class="msg"></p>

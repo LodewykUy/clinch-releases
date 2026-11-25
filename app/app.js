@@ -56,18 +56,20 @@ $('sendCode').onclick = async () => {
   $('sendCode').disabled = false;
   if (r.error) return msg('loginMsg', 'error', r.error);
   $('sentTo').textContent = email; $('loginEmail').hidden = true; $('loginCode').hidden = false;
-  msg('loginMsg', '', 'Check your inbox (and spam). The code expires in an hour.'); $('code').focus();
+  msg('loginMsg', '', 'Check your inbox (and spam) and click the sign-in link. It opens Clinch and signs you in. If you got a code instead, type it here.'); $('code').focus();
 };
 $('email').onkeydown = e => { if (e.key === 'Enter') $('sendCode').click(); };
 $('code').onkeydown = e => { if (e.key === 'Enter') $('verify').click(); };
 $('back').onclick = showLogin;
+A.onSignedIn?.(async d => { if (d?.error) return msg('loginMsg', 'error', 'That sign-in link did not work. Request a new one.'); msg('loginMsg', '', ''); await afterSignIn(); });
 $('verify').onclick = async () => {
-  const code = $('code').value.replace(/\D/g, '');
-  if (code.length < 6) return msg('loginMsg', 'error', 'Enter the code from the email.');
+  const v = $('code').value.trim();
+  const code = /[:/#=]/.test(v) ? v : v.replace(/\D/g, '');
+  if (code.length < 6) return msg('loginMsg', 'error', 'Click the link in the email, or paste it here.');
   $('verify').disabled = true; msg('loginMsg', '', 'Signing in…');
   const r = await A.authVerify($('sentTo').textContent, code);
   $('verify').disabled = false;
-  if (r.error) return msg('loginMsg', 'error', 'That code did not work. Check it, or request a new one.');
+  if (r.error) return msg('loginMsg', 'error', 'That did not work. Request a new email and use the newest one.');
   msg('loginMsg', '', ''); await afterSignIn();
 };
 

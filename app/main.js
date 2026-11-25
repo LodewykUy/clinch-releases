@@ -63,8 +63,12 @@ async function rest(p, method = 'GET', body) {
 const safe = f => async (_e, ...a) => { try { return await f(...a); } catch (e) { return { error: e.message, code: e.code }; } };
 
 ipcMain.handle('auth-state', safe(async () => (sess ? { email: sess.email } : null)));
-ipcMain.handle('auth-send', safe(async email => { await authFetch('/otp', { email, create_user: true }); return { ok: true }; }));
-ipcMain.handle('auth-verify', safe(async (email, code) => { setSession(await authFetch('/verify', { type: 'email', email, token: code })); return { email: sess.email }; }));
+ipcMain.handle('auth-send', safe(async email => { await authFetch('/otp?redirect_to=' + encodeURIComponent(PROTOCOL + '://auth'), { email, create_user: true }); return { ok: true }; }));
+ipcMain.handle('auth-verify', safe(async (email, code) => {
+  if (/[:/#=]/.test(code)) { if (!(await signInFromLink(code))) throw new Error('That link did not work'); }
+  else setSession(await authFetch('/verify', { type: 'email', email, token: code }));
+  return { email: sess.email };
+}));
 ipcMain.handle('sign-out', safe(async () => { sess = null; saveSession(); return { ok: true }; }));
 ipcMain.handle('account', safe(() => fn('account', null, 'GET')));
 ipcMain.handle('dg-token', safe(() => fn('dg-token')));
@@ -142,7 +146,7 @@ ipcMain.handle('version', () => app.getVersion());
 
 // ---------- window ----------
 function createWindow() {
-  const win = new BrowserWindow({
+  const win = mainWin = new BrowserWindow({
     width: 440, height: 800, minWidth: 360, minHeight: 480, alwaysOnTop: true, title: 'Clinch',
     backgroundColor: '#0f1115', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true }
@@ -152,6 +156,35 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) shell.openExternal(url); return { action: 'deny' }; });
 }
 
+// ---------- sign-in link (clinch://auth#access_token=...) ----------
+const PROTOCOL = 'clinch';
+let mainWin = null;
+if (!app.requestSingleInstanceLock()) app.quit();
+if (process.defaultApp && process.argv.length >= 2) app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])]);
+else app.setAsDefaultProtocolClient(PROTOCOL);
+// Turn a sign-in link (or a pasted link/URL) into a session. Returns true if it worked.
+async function signInFromLink(text) {
+  const raw = String(text || '').trim();
+  const frag = raw.includes('#') ? raw.slice(raw.indexOf('#') + 1) : '';
+  const hp = new URLSearchParams(frag);
+  if (hp.get('access_token') && hp.get('refresh_token')) {
+    const d = await authFetch('/token?grant_type=refresh_token', { refresh_token: hp.get('refresh_token') });
+    setSession(d); return true;
+  }
+  let u = null; try { u = new URL(raw); } catch (e) { return false; }
+  const th = u.searchParams.get('token_hash') || u.searchParams.get('token');
+  if (th) { setSession(await authFetch('/verify', { type: u.searchParams.get('type') === 'signup' ? 'signup' : 'magiclink', token_hash: th })); return true; }
+  return false;
+}
+async function handleDeepLink(argv) {
+  const url = (argv || []).find(a => typeof a === 'string' && a.startsWith(PROTOCOL + '://'));
+  if (!url) return;
+  try { if (await signInFromLink(url)) mainWin?.webContents.send('signed-in', { email: sess?.email }); }
+  catch (e) { mainWin?.webContents.send('signed-in', { error: e.message }); }
+  if (mainWin) { if (mainWin.isMinimized()) mainWin.restore(); mainWin.show(); mainWin.focus(); }
+}
+app.on('second-instance', (_e, argv) => handleDeepLink(argv));
+
 app.whenReady().then(() => {
   loadSession();
   session.defaultSession.setDisplayMediaRequestHandler((_req, cb) => {
@@ -159,6 +192,7 @@ app.whenReady().then(() => {
   });
   session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(['media', 'display-capture'].includes(perm)));
   createWindow();
+  mainWin.webContents.once('did-finish-load', () => handleDeepLink(process.argv));
   // Auto-update from GitHub Releases (installed builds only).
   if (app.isPackaged) {
     try { require('electron-updater').autoUpdater.checkForUpdatesAndNotify(); } catch (e) {}
