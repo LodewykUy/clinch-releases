@@ -1,0 +1,55 @@
+{
+  "name": "clinch",
+  "productName": "Clinch",
+  "version": "1.0.0",
+  "description": "Live transcript and what to say next on any sales call",
+  "main": "main.js",
+  "author": "Clinch",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "ai.clinch.app",
+    "productName": "Clinch",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "app.js",
+      "ui.css",
+      "config.json",
+      "package.json",
+      "mark.png",
+      "mark@2x.png"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "Clinch-Setup.${ext}",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "shortcutName": "Clinch"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LodewykUy",
+        "repo": "clinch-releases",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

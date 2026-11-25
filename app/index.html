@@ -1,0 +1,217 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Clinch</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src wss://api.deepgram.com; media-src 'self' blob: mediastream:">
+<link rel="stylesheet" href="ui.css">
+<style>
+  [hidden]{display:none!important}
+  body{padding:14px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  .view{display:flex;flex-direction:column;flex:1;min-height:0}
+  .scroll{overflow:auto}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:16px;letter-spacing:-.01em}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px rgba(13,242,175,.18)}
+  .hero{margin:auto 0;text-align:center;padding:10px}
+  .hero h1{font-size:24px;letter-spacing:-.02em;margin:14px 0 6px}
+  .hero p{color:var(--muted);margin:0 0 18px}
+  .steps{display:flex;gap:6px;margin:10px 0 4px}
+  .steps span{flex:1;height:4px;border-radius:4px;background:var(--line)}
+  .steps span.on{background:var(--sig)}
+  .top{display:flex;align-items:center;gap:8px}
+  .top select{flex:1}
+  .pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:#222734;color:var(--muted);white-space:nowrap}
+  .pill.live{background:rgba(13,242,175,.15);color:var(--ok)}
+  .pill.error{background:rgba(255,93,93,.15);color:var(--err)}
+  .msg{font-size:12.5px;margin:8px 0 0;min-height:16px;color:var(--muted)}
+  .msg.error{color:var(--err)} .msg.warn{color:var(--warn)} .msg.live,.msg.ok{color:var(--ok)}
+  .banner{background:rgba(245,176,65,.12);border:1px solid rgba(245,176,65,.35);color:#f7c873;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+  .banner.err{background:rgba(255,93,93,.12);border-color:rgba(255,93,93,.35);color:#ff9b9b}
+  .say{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--sig);border-radius:12px;padding:14px;margin-top:12px}
+  .say .tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--sig)}
+  .say .line{font-size:19px;line-height:1.35;font-weight:650;margin:6px 0}
+  .say .tone{display:inline-flex;gap:6px;align-items:center;font-size:12px;font-weight:600;color:var(--gold);background:rgba(255,197,34,.1);border:1px solid rgba(255,197,34,.28);border-radius:99px;padding:2px 9px;margin:0 0 8px}
+  .say .next{font-size:13.5px;color:#c6cbd8}
+  .say .meta{font-size:11px;color:var(--muted);margin-top:8px}
+  .say.objection,.say.stall{border-left-color:var(--warn)} .say.objection .tag,.say.stall .tag{color:var(--warn)}
+  .say.buying_signal{border-left-color:var(--ok)} .say.buying_signal .tag{color:var(--ok)}
+  .say.guide{border-left-color:#7c8cff;background:#151826} .say.guide .tag{color:#9aa6ff} .say.guide .line{font-size:16px}
+  .say.thinking{opacity:.55}
+  #stage{font-size:11px;color:var(--muted);margin-top:8px} #stage b{color:var(--text)}
+  .empty{color:var(--muted);text-align:center;padding:22px 8px;font-size:13px}
+  .section{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px;display:flex;justify-content:space-between}
+  #history{max-height:22vh;overflow:auto}
+  #history .say{padding:10px;margin-top:8px} #history .say .line{font-size:14px}
+  #tx{flex:1;overflow:auto;background:#0c0e12;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;min-height:90px}
+  #tx p{margin:0 0 6px} #tx b{font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  #tx .them b{color:var(--warn)} #tx .you b{color:var(--sig)} #tx .interim{color:var(--muted)}
+  .foot{font-size:11.5px;color:var(--muted);margin-top:8px}
+  .linkbtn{background:none;border:0;color:var(--sig);padding:0;font-size:12px;font-weight:700;cursor:pointer}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+  .check{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--text)}
+  .check input{width:auto}
+  .prof{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+  .test{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:10px;margin-top:10px}
+  .test .ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#222734;font-weight:800;flex:none}
+  .test.pass .ic{background:rgba(13,242,175,.18);color:var(--ok)} .test.fail .ic{background:rgba(255,93,93,.18);color:var(--err)}
+  .test b{display:block;font-size:14px} .test small{color:var(--muted);font-size:12px}
+  .meter{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:6px} .meter i{display:block;height:100%;width:0;background:var(--ok);transition:width .1s}
+  .deal{background:#141a2a;border:1px solid #26304a;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13px}
+  .deal b{color:#9aa6ff;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .deal pre{white-space:pre-wrap;font:inherit;margin:6px 0 0;color:#c6cbd8}
+  .saveCall{background:var(--card);border:1px solid var(--sig);border-radius:12px;padding:14px;margin-top:12px}
+  .mlist{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+  .mlist div{padding:8px 10px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+  .mlist div:hover,.mlist div.sel{background:#1b2030}
+  .mlist small{color:var(--muted);display:block}
+  .dealrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .dealrow small{color:var(--muted)}
+  .row2{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .row2 span:first-child{color:var(--muted)}
+</style></head>
+<body>
+
+<!-- 1. SIGN IN -->
+<div id="vLogin" class="view" hidden>
+  <div class="brand"><img src="mark.png" srcset="mark@2x.png 2x" alt="" width="22" height="16">CLINCH</div>
+  <div class="hero">
+    <h1>Know what to say.<br>While they're still talking.</h1>
+    <p>Sign in or create your account. 7 days free, no card needed.</p>
+    <div id="loginEmail">
+      <input id="email" type="email" placeholder="you@email.com" autocomplete="email">
+      <div class="btns" style="justify-content:center"><button id="sendCode" class="primary">Email me a code</button></div>
+    </div>
+    <div id="loginCode" hidden>
+      <p style="margin:0 0 10px">We sent a code to <b id="sentTo"></b></p>
+      <input id="code" inputmode="numeric" placeholder="Enter the code" autocomplete="one-time-code" style="text-align:center;font-size:20px;letter-spacing:.2em">
+      <div class="btns" style="justify-content:center"><button id="verify" class="primary">Sign in</button><button id="back">Use another email</button></div>
+    </div>
+    <p id="loginMsg" class="msg"></p>
+  </div>
+</div>
+
+<!-- 2. ONBOARDING -->
+<div id="vOnboard" class="view scroll" hidden>
+  <div class="brand"><img src="mark.png" srcset="mark@2x.png 2x" alt="" width="22" height="16">CLINCH</div>
+  <div class="steps"><span id="st1"></span><span id="st2"></span><span id="st3"></span></div>
+
+  <div id="ob1">
+    <div id="obBanner"></div>
+    <h2 style="margin-top:12px">1. Teach it what you sell</h2>
+    <p class="foot" style="margin-top:0">Give it whatever you have. It writes your call sequence and the answers to your objections. Takes about a minute.</p>
+    <div class="card">
+      <label>Your first name</label><input id="bName" placeholder="e.g. Sam">
+      <label>Industry / niche</label><input id="bIndustry" placeholder="e.g. business coaching for agency owners">
+      <label>Website</label><input id="bSite" placeholder="e.g. yourcompany.com">
+      <label>What you sell, who for, and the price</label><textarea id="bOffer" rows="3" placeholder="e.g. 12-week program, $5,000 or 3 x $1,800, for agency owners stuck under $30k/month"></textarea>
+      <label>Voice note (optional): talk about what you sell, who buys, and the usual objections</label>
+      <div class="btns" style="margin-top:4px"><button id="bRec">● Record voice note</button><span id="bRecMsg" class="foot" style="align-self:center;margin:0"></span></div>
+      <label>Previous calls (optional): transcripts or audio files</label>
+      <input id="bFiles" type="file" multiple accept=".txt,.vtt,.srt,.md,audio/*,video/mp4">
+      <div class="btns"><button id="bBuild" class="primary">Build my profile</button><button id="obCancel" hidden>Cancel</button></div>
+      <p id="bMsg" class="msg"></p>
+    </div>
+  </div>
+
+  <div id="ob2" hidden>
+    <h2 style="margin-top:12px">2. Sound check</h2>
+    <p class="foot" style="margin-top:0">Put your headphones on, the ones you use for calls. This checks it can hear both sides.</p>
+    <div class="test" id="tSpk"><div class="ic">1</div><div style="flex:1"><b>Hear the prospect</b><small id="tSpkMsg">Plays a short beep in your headphones and listens for it.</small></div><button id="runSpk">Test</button></div>
+    <div class="test" id="tMic"><div class="ic">2</div><div style="flex:1"><b>Hear you</b><small id="tMicMsg">Say "testing, one two three" when you press Test.</small><div class="meter"><i id="micBar"></i></div></div><button id="runMic">Test</button></div>
+    <div class="card" style="font-size:13px">
+      <b>Using Zoom, Teams or Meet?</b>
+      <p class="foot" style="margin:6px 0 0">Set the call app's speaker to "Same as System". Make your headphones the Windows default speaker (speaker icon on the taskbar). Clinch listens to that.</p>
+    </div>
+    <div class="btns"><button id="obDone" class="primary" disabled>Continue</button><button id="obSkip">Skip for now</button></div>
+  </div>
+
+  <div id="ob3" hidden>
+    <div class="hero">
+      <h1>You're ready.</h1>
+      <p>Join your call in any app, then press <b>Start listening</b>.<br>Blue = your next question. Orange = objection answer.<br>Ctrl+H any time for a line.</p>
+      <div class="btns" style="justify-content:center"><button id="toCall" class="primary">Go to the call screen</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. CALL -->
+<div id="vCall" class="view" hidden>
+  <div class="top">
+    <select id="profile" title="Call profile"></select>
+    <span id="pill" class="pill">Idle</span>
+  </div>
+  <div class="top" style="margin-top:8px">
+    <select id="deal" title="Who is this call with?"></select>
+  </div>
+  <div id="dealBox"></div>
+  <div id="planBanner"></div>
+  <div class="btns">
+    <button id="start" class="primary">Start listening</button>
+    <button id="stop" class="danger" hidden>Stop</button>
+    <button id="help" title="Get a line now (Ctrl+H)">Help me now</button>
+    <button id="openSettings">Settings</button>
+  </div>
+  <div id="status" class="msg"></div>
+  <div id="stage"></div>
+  <div id="current"><div class="empty">Join your call in any app (Zoom, Teams, Meet, WhatsApp, a dialer), then press Start.</div></div>
+  <div class="section"><span>Earlier lines</span></div>
+  <div id="history"></div>
+  <div class="section"><span>Transcript</span><button id="copy" class="linkbtn">Copy</button></div>
+  <div id="tx"></div>
+  <div class="foot">Hidden from screen share. Say at the start: "I use an AI assistant to take notes, is that OK?"</div>
+</div>
+
+<!-- 4. SETTINGS -->
+<div id="vSettings" class="view scroll" hidden>
+  <div class="top"><b style="flex:1">Settings</b><button id="closeSettings" class="primary">Done</button></div>
+
+  <div class="card">
+    <b>Account</b>
+    <div style="margin-top:8px">
+      <div class="row2"><span>Email</span><span id="aEmail"></span></div>
+      <div class="row2"><span>Plan</span><span id="aPlan"></span></div>
+      <div class="row2"><span>Call time this month</span><span id="aMins"></span></div>
+    </div>
+    <div class="btns"><button id="aBilling" class="primary">Subscribe</button><button id="aSignOut">Sign out</button></div>
+  </div>
+
+  <div class="card">
+    <b>Call profiles</b>
+    <p class="foot">It only uses facts written here. Changes save to your account.</p>
+    <div class="btns"><button id="newProfile" class="primary">+ Build a new profile with AI</button><button id="addBlank">Add blank</button></div>
+    <div id="profiles"></div>
+    <div class="btns"><button id="saveProfiles">Save profiles</button></div>
+    <p id="profMsg" class="msg"></p>
+  </div>
+
+  <div class="card">
+    <b>Follow-up calls</b>
+    <p class="foot">Every saved call becomes memory for the next one. Import past calls from Fathom or a transcript file.</p>
+    <label>Fathom API key (Fathom → Settings → API Access)</label>
+    <div class="top"><input id="fathomKey" type="password" autocomplete="off" placeholder="Paste your Fathom API key"><button id="fathomSave">Connect</button></div>
+    <p id="fathomMsg" class="msg"></p>
+    <div class="btns"><button id="impFathom">Import from Fathom</button><button id="impFileBtn">Import transcript file</button><input id="impFile" type="file" accept=".txt,.vtt,.srt,.md" hidden></div>
+    <div id="impPanel" hidden>
+      <div id="mlist" class="mlist"></div>
+      <div class="btns" id="moreWrap" hidden><button id="moreMeetings" class="linkbtn">Load more</button></div>
+      <label>Which deal is this call for?</label>
+      <select id="impDeal"></select>
+      <input id="impDealName" placeholder="New deal: prospect or company name" style="margin-top:6px">
+      <div class="btns"><button id="impGo" class="primary">Import and write recap</button><button id="impCancel">Cancel</button></div>
+    </div>
+    <p id="impMsg" class="msg"></p>
+    <div class="section"><span>Your deals</span></div>
+    <div id="dealsList"></div>
+  </div>
+
+  <div class="card">
+    <b>Preferences</b>
+    <label>Your first name</label><input id="name">
+    <label>Call language (en, en-GB, en-US, multi)</label><input id="lang">
+    <label class="check"><input id="includeMic" type="checkbox"> Transcribe my mic too</label>
+    <label class="check"><input id="hidden" type="checkbox"> Hide this window from screen share</label>
+    <label class="check"><input id="onTop" type="checkbox"> Keep on top of other windows</label>
+    <div class="btns"><button id="redoSound">Run sound check again</button></div>
+    <p class="foot" id="ver"></p>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body></html>
