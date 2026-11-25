@@ -24,6 +24,10 @@ function obStep(n) {
 function msg(el, level, text) { $(el).className = 'msg ' + (level || ''); $(el).textContent = text || ''; }
 function applyWindow() { A.setHidden(P.hidden); A.setTop(P.onTop); }
 
+const WEB = !!window.CLINCH_WEB;
+// In Chrome this opens the share picker: the rep picks the tab with their call and ticks "Share tab audio".
+const SHARE_OPTS = { audio: true, video: true, systemAudio: 'include', selfBrowserSurface: 'exclude', surfaceSwitching: 'include' };
+
 // ---------- boot ----------
 async function boot() {
   applyWindow();
@@ -198,7 +202,7 @@ async function peakLevel(stream, ms, onLevel, during) {
 $('runSpk').onclick = async () => {
   setTest('tSpk', null, 'Listening… you should hear a beep.');
   try {
-    const disp = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
+    const disp = await navigator.mediaDevices.getDisplayMedia(SHARE_OPTS);
     disp.getVideoTracks().forEach(t => t.stop());
     const stream = new MediaStream(disp.getAudioTracks());
     const beep = ctx => {
@@ -207,6 +211,12 @@ $('runSpk').onclick = async () => {
       setTimeout(() => { try { osc.stop(); } catch (e) {} }, 1200);
       return () => { try { osc.stop(); } catch (e) {} };
     };
+    if (WEB) {
+      stream.getTracks().forEach(t => t.stop());
+      passed.spk = stream.getAudioTracks().length > 0;
+      return setTest('tSpk', passed.spk, passed.spk ? 'Sharing works. On calls, pick the tab with your call and tick "Share tab audio".'
+        : 'No sound was shared. Press Test again and tick "Share tab audio" (or "Share system audio") in the box that opens.');
+    }
     const peak = await peakLevel(stream, 4000, null, beep);
     stream.getTracks().forEach(t => t.stop());
     passed.spk = peak > 0.01;
@@ -251,9 +261,10 @@ $('start').onclick = async () => {
   try {
     const tok = await A.dgToken();
     if (tok.error) throw new Error(tok.error);
-    const disp = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
+    if (WEB) setStatus('', 'Pick the tab with your call and tick "Share tab audio".');
+    const disp = await navigator.mediaDevices.getDisplayMedia(SHARE_OPTS);
     disp.getVideoTracks().forEach(t => t.stop());
-    if (!disp.getAudioTracks().length) throw new Error('No computer sound available');
+    if (!disp.getAudioTracks().length) { disp.getTracks().forEach(t => t.stop()); throw new Error(WEB ? 'No sound was shared. Press Start again and tick "Share tab audio".' : 'No computer sound available'); }
     lines = []; interim = { them: '', you: '' }; lastSuggestedAt = 0;
     $('history').innerHTML = ''; $('stage').innerHTML = ''; renderTx();
     openStream(new MediaStream(disp.getAudioTracks()), 'them', tok.token);
